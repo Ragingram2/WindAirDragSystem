@@ -24,8 +24,9 @@ public class ItemPickup : MonoBehaviour
                 {
                     pickedUp = hit.collider.gameObject;
                     pickedUp.transform.parent = transform;
-                    pickedUp.GetComponent<Rigidbody>().isKinematic = true;
-                    pickedUp.GetComponent<Rigidbody>().useGravity = false;
+                    pickedUp.GetComponent<DragComponent>().pause = true;
+                    //pickedUp.GetComponent<Rigidbody>().isKinematic = true;
+                    //pickedUp.GetComponent<Rigidbody>().useGravity = false;
                     pickedUp.GetComponent<Rigidbody>().velocity = Vector3.zero;
                     pickedUp.GetComponent<Rigidbody>().angularVelocity = Vector3.zero;
                 }
@@ -34,8 +35,9 @@ public class ItemPickup : MonoBehaviour
         if (Input.GetMouseButtonUp(0) && pickedUp != null)
         {
             pickedUp.transform.parent = null;
-            pickedUp.GetComponent<Rigidbody>().isKinematic = false;
-            pickedUp.GetComponent<Rigidbody>().useGravity = true;
+            pickedUp.GetComponent<DragComponent>().pause = false;
+            //pickedUp.GetComponent<Rigidbody>().isKinematic = false;
+            //pickedUp.GetComponent<Rigidbody>().useGravity = true;
             pickedUp.GetComponent<Rigidbody>().velocity = Vector3.zero;
             pickedUp.GetComponent<Rigidbody>().angularVelocity = Vector3.zero;
             pickedUp.GetComponent<Rigidbody>().AddForce(transform.forward * 9000.0f);

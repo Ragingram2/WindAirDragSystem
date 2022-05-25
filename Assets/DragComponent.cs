@@ -47,8 +47,6 @@ public class DragComponent : MonoBehaviour
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
-        rb.isKinematic = true;
-        rb.useGravity = false;
         UpdateMesh();
         startPos = transform.position;
     }
@@ -126,7 +124,7 @@ public class DragComponent : MonoBehaviour
         var airNormal = -rb.velocity.normalized;
         for (int i = 0; i < triangles.Count; i++)
         {
-            if (rb.velocity.magnitude < 0.1f)
+            if (rb.velocity.magnitude < 0.1f || rb.angularVelocity.magnitude < 0.1f)
                 return;
 
             var tri = triangles[i];
@@ -139,7 +137,7 @@ public class DragComponent : MonoBehaviour
             tri.dragForces = applyDragForce(points.left, points.right, airProjected, force);
             Vector3 integrationAxis = angularVelocity.normalized.Cross(tri.normal).normalized;
             var torque = calculateTorque(tri, integrationAxis, theta);
-            applyAngularDragForce(integrationAxis, torque);
+            applyAngularDragForce(tri, integrationAxis, torque);
             Debug.DrawRay(transform.position + tri.center, torque);
         }
     }
@@ -236,16 +234,18 @@ public class DragComponent : MonoBehaviour
         }
         return sum / b;
     }
-    private float integrate_c0(float a, float b, float c, float x)
+    private float integrate_c0(float a, float b, float c, float d, float x, float H)
     {
-        return 0f;
+        float sum = 0;
+        for (float i = 0; i < c; i++)
+        {
+            sum += Mathf.Pow(h2m(a, b, c, d, H, x), 2f) * Mathf.Pow(x, 3f);
+        }
+        return sum / b; ;
     }
     private Vector3 calculateTorque(triangle tri, Vector3 integrationAxis, float theta)
     {
         Vector3 torque = integrationAxis.Mult(angularVelocity.Pow(2f)) * airDensity * Mathf.Cos(1 + (Mathf.Cos(theta) / 2f));
-        //var ab = ;
-        //var b0;
-        //var c0;
         return torque;
     }
     private float fallOffFactor(float pillowEffectFactor, float distance, float length)
@@ -287,13 +287,23 @@ public class DragComponent : MonoBehaviour
         return dragForces;
     }
 
-    private List<(Vector3 position, Vector3 force)> applyAngularDragForce(Vector3 integrationAxis, Vector3 torque)
+    private List<(Vector3 position, Vector3 force)> applyAngularDragForce(triangle tri, Vector3 integrationAxis, Vector3 torque)
     {
         var dragForces = new List<(Vector3 position, Vector3 force)>();
 
         for (int i = 0; i < integrationSteps; i++)
         {
             //Angular Drag 
+            var length = integrationAxis.magnitude;
+            var dist = length * (i / integrationSteps);//dist
+            var ab = integrate_ab(-1f, -.5f, 1f, dist, length);
+            var b0 = integrate_b0(-1f, -.5f, 1f, 1f, dist, length);
+            var c0 = integrate_c0(-1f, -.5f, 1f, 1f, dist, length);
+            var fallOff = fallOffFactor(pillowEffectFactor, dist, length);
+            var forcePos = (tri.center) + integrationAxis.normalized * dist;
+            torque *= (-ab - b0 + c0) * fallOff;
+            dragForces.Add((forcePos, torque));
+            rb.AddTorque(torque);
         }
         return dragForces;
     }
