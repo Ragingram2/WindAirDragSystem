@@ -4,50 +4,24 @@ using UnityEngine;
 using MathExtensions;
 using System;
 
-class triangle
-{
-    public (int idx, Vector3 point) v1 { get; set; }
-
-    public (int idx, Vector3 point) v2 { get; set; }
-
-    public (int idx, Vector3 point) v3 { get; set; }
-    public Vector3 side1 { get; set; }
-    public Vector3 side2 { get; set; }
-    public Vector3 side3 { get; set; }
-    public Vector3 normal { get; set; }
-    public Vector3 center { get; set; }
-    public List<(Vector3 position, Vector3 force)> dragForces { get; set; }
-
-    public triangle() { }
-
-    public override string ToString()
-    {
-        return $"V1: {v1.point}\n" +
-                   $"V2: {v2.point}\n" +
-                   $"V3: {v3.point}\n" +
-                   $"Normal: {normal}";
-    }
-}
-
 public class DragComponent : MonoBehaviour
 {
     [SerializeField] private float pillowEffectFactor = .25f;
     [SerializeField] private float airDensity = .1f;
     [SerializeField] private float integrationSteps = 1f;
+    [SerializeField] private float airSpeed;
+    [SerializeField] private Vector3 airNormal = Vector3.left;
 
-    private Rigidbody rb;
-    private Mesh mesh;
-
+    //private Rigidbody rb;
+    private TriangleManager triManager;
     private Vector3 startPos;
     public Vector3 velocity;
     public Vector3 angularVelocity;
-    private List<triangle> triangles = new List<triangle>();
-    public bool pause = true;
 
     private void Start()
     {
-        rb = GetComponent<Rigidbody>();
-        UpdateMesh();
+        //rb = GetComponent<Rigidbody>();
+        triManager = GetComponent<TriangleManager>();
         startPos = transform.position;
     }
 
@@ -55,115 +29,96 @@ public class DragComponent : MonoBehaviour
     {
         if (Input.GetKeyUp(KeyCode.R))
         {
-            rb.velocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
-            pause = true;
+            triManager.Pause();
             transform.position = startPos;
-            Debug.Log("Reset");
         }
 
-        if (Input.GetKeyUp(KeyCode.E))
-        {
-            pause = !pause;
-            Debug.Log(pause ? "Paused" : "Un-Paused");
-        }
+        //if (triManager.IsPaused())
+        //{
+        //    rb.velocity = Vector3.zero;
+        //    rb.angularVelocity = Vector3.zero;
+        //}
     }
 
     private void FixedUpdate()
     {
-        //transform.Rotate(transform.right, Time.deltaTime * Input.GetAxis("Horizontal") * 100f);
-
-        if (!pause)
-        {
-            rb.isKinematic = false;
-            rb.useGravity = true;
-            UpdateMesh();
-            UpdateDragForces();
-            Debug.Log("Updating");
-            //UpdateAngularForces();
-        }
-        else
-        {
-            rb.isKinematic = true;
-            rb.useGravity = false;
-        }
+        //rb.isKinematic = triManager.IsPaused();
+        //rb.useGravity = !triManager.IsPaused();
+        UpdateDragForces();
     }
-    private void UpdateMesh()
-    {
-        if (pause)
-            return;
 
-        mesh = GetComponent<MeshFilter>().mesh;
-        var tris = mesh.GetTriangles(0);
-        triangles.Clear();
-        for (int i = 0; i < tris.Length;)
-        {
-            var point1 = transform.localToWorldMatrix * mesh.vertices[tris[i + 0]];
-            var point2 = transform.localToWorldMatrix * mesh.vertices[tris[i + 1]];
-            var point3 = transform.localToWorldMatrix * mesh.vertices[tris[i + 2]];
-            triangles.Add(new triangle
-            {
-                v1 = (i + 0, point1),
-                v2 = (i + 1, point2),
-                v3 = (i + 2, point3),
-                side1 = point2 - point1,
-                side2 = point3 - point2,
-                side3 = point1 - point3,
-                normal = Vector3.Normalize(Vector3.Cross(point3 - point1, point2 - point1)),
-                center = ((point1 + point2 + point3) / 3.0f)
-            });
-            i += 3;
-        }
-    }
     private void UpdateDragForces()
     {
-        if (pause)
+        if (triManager.IsPaused())
             return;
-        velocity = rb.velocity;
-        angularVelocity = rb.angularVelocity;
-        var airNormal = -rb.velocity.normalized;
-        for (int i = 0; i < triangles.Count; i++)
+        bool logInfo = false;
+        velocity = -airNormal*airSpeed;
+        //angularVelocity = rb.angularVelocity;
+        //var airNormal = -rb.velocity.normalized;
+
+        if (Input.GetKeyUp(KeyCode.Q))
+            logInfo = true;
+
+        Debug.DrawRay(transform.position + new Vector3(0, 0, -1.5f), airNormal);
+        for (int i = 0; i < triManager.Triangles.Count; i++)
         {
-            if (rb.velocity.magnitude < 0.1f || rb.angularVelocity.magnitude < 0.1f)
-                return;
+            //if (rb.velocity.magnitude < 0.1f)
+            //    return;
 
-            var tri = triangles[i];
-            var theta = Vector3.Angle(airNormal, tri.normal);
-            var area = calculateArea(tri, airNormal);
+            var tri = triManager.Triangles[i];
+            var theta = Mathf.Deg2Rad*Vector3.Angle(airNormal, tri.normal);
+            var area = tri.airFlowArea(airNormal);
             var force = calculateForce(tri, area, theta);
-            var airProjected = -(velocity - tri.normal * velocity.Dot(tri.normal)).normalized;
+            Debug.DrawRay(transform.position + tri.center, force *10f, Color.red);
+            Debug.DrawRay(transform.position + tri.center, tri.normal, Color.blue);
+            if (logInfo)
+            {
+                Debug.Log("");
+                Debug.Log($"Area:{area}");
+                Debug.Log($"Theta:{theta}");
+                Debug.Log($"Cos(Theta):{Mathf.Cos(theta)}");
+                Debug.Log($"Force:{force}");
+            }
 
-            var points = calculateLeftAndRightPoints(tri, airProjected);
-            tri.dragForces = applyDragForce(points.left, points.right, airProjected, force);
-            Vector3 integrationAxis = angularVelocity.normalized.Cross(tri.normal).normalized;
-            var torque = calculateTorque(tri, integrationAxis, theta);
-            applyAngularDragForce(tri, integrationAxis, torque);
-            Debug.DrawRay(transform.position + tri.center, torque);
+            //Debug.Log(force);
+            //var airProjected = -(velocity - tri.normal * velocity.Dot(tri.normal)).normalized;
+
+            //var points = calculateLeftAndRightPoints(tri, airProjected);
+            //tri.dragForces = applyDragForce(points.left, points.right, airProjected, force);
+
+            //if (rb.angularVelocity.magnitude < 0.1f)
+            //    return;
+
+            //Vector3 integrationAxis = tri.normal.Cross(angularVelocity);
+            //var tangentialVel = rb.GetPointVelocity(transform.position + tri.center);
+            //theta = Vector3.Angle(integrationAxis, angularVelocity);
+            //var torque = tri.airFlowArea(-tangentialVel) * calculateTorque(tri, integrationAxis, theta);
+            //applyAngularDragForce(tri, integrationAxis, (tangentialVel.normalized) * torque.magnitude);
         }
     }
 
     private void OnDrawGizmos()
     {
-        foreach (triangle tri in triangles)
-        {
-            Vector3 integrationAxis = angularVelocity.normalized.Cross(tri.normal).normalized;
-            Vector3 heightAxis = integrationAxis.Cross(tri.normal).normalized;
-            Vector3 offset = Vector3.ProjectOnPlane(tri.center + new Vector3(.25f, 0f, .25f), tri.normal) + tri.center.Dot(tri.normal) * tri.normal;
-            //float velMag = offset.magnitude * angularVelocity.magnitude * Mathf.Sin(Vector3.Angle(angularVelocity.normalized, offset));
-            //Debug.Log(velMag);
-            Gizmos.color = Color.blue;
-            Gizmos.DrawLine(transform.position + tri.center, transform.position + offset);
-            Gizmos.color = Color.green;
-            Gizmos.DrawRay(transform.position + tri.center, integrationAxis);
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawRay(transform.position + tri.center, heightAxis);
-            Gizmos.color = Color.red;
-            if (tri.dragForces != null)
-                foreach (var drag in tri.dragForces)
-                {
-                    Gizmos.DrawRay(drag.position, drag.force);
-                }
-        }
+        //foreach (triangle tri in triangles)
+        //{
+        //    Vector3 integrationAxis = angularVelocity.normalized.Cross(tri.normal).normalized;
+        //    Vector3 heightAxis = integrationAxis.Cross(tri.normal).normalized;
+        //    Vector3 offset = Vector3.ProjectOnPlane(tri.center + new Vector3(.25f, 0f, .25f), tri.normal) + tri.center.Dot(tri.normal) * tri.normal;
+        //    //float velMag = offset.magnitude * angularVelocity.magnitude * Mathf.Sin(Vector3.Angle(angularVelocity.normalized, offset));
+        //    //Debug.Log(velMag);
+        //    Gizmos.color = Color.blue;
+        //    Gizmos.DrawLine(transform.position + tri.center, transform.position + offset);
+        //    Gizmos.color = Color.green;
+        //    Gizmos.DrawRay(transform.position + tri.center, integrationAxis);
+        //    Gizmos.color = Color.yellow;
+        //    Gizmos.DrawRay(transform.position + tri.center, heightAxis);
+        //    Gizmos.color = Color.red;
+        //    if (tri.dragForces != null)
+        //        foreach (var drag in tri.dragForces)
+        //        {
+        //            Gizmos.DrawRay(drag.position, drag.force);
+        //        }
+        //}
     }
 
     private (Vector3 original, Vector3 projected) findLeftMostPoint(List<(Vector3 original, Vector3 projected)> points)
@@ -198,14 +153,11 @@ public class DragComponent : MonoBehaviour
     {
         return (right * point.x) + (up * point.y) + (forward * point.z);
     }
-    private float calculateArea(triangle tri, Vector3 airNormal)
-    {
-        return Vector3.Magnitude(Vector3.Cross(tri.side1 - (airNormal * Vector3.Dot(tri.side1, airNormal)), tri.side2 - (airNormal * Vector3.Dot(tri.side2, airNormal)))) * .5f;
-    }
+
     private Vector3 calculateForce(triangle tri, float area, float theta)
     {
         var force = airDensity * area * (velocity.Pow(2f)) * Mathf.Cos(theta) * (1 + (Mathf.Cos(theta) / 2f));
-        return new Vector3(force.x * tri.normal.x, force.y * tri.normal.y, force.z * tri.normal.z);
+        return force.Mult(tri.normal);
     }
 
     private float h1m(float a, float b, float c, float H, float x)
@@ -282,56 +234,23 @@ public class DragComponent : MonoBehaviour
             var integratedForce = force * fallOff/* * triThickness * (j < halfPoint ? dist / halfPoint : 1 - ((dist - halfPoint) / (length - halfPoint)))*/;
             var forcePos = (leftMostPoint) + projAir.normalized * dist;
             dragForces.Add((forcePos, integratedForce));
-            rb.AddForceAtPosition(integratedForce, forcePos);
+            //rb.AddForceAtPosition(integratedForce, forcePos);
         }
         return dragForces;
     }
 
-    private List<(Vector3 position, Vector3 force)> applyAngularDragForce(triangle tri, Vector3 integrationAxis, Vector3 torque)
+    private List<(Vector3 position, Vector3 force)> applyAngularDragForce(triangle tri, Vector3 integrationAxis, Vector3 tangentialVel)
     {
         var dragForces = new List<(Vector3 position, Vector3 force)>();
 
-        for (int i = 0; i < integrationSteps; i++)
+        for (int x = 0; x < integrationSteps; x++)
         {
-            //Angular Drag 
-            var length = integrationAxis.magnitude;
-            var dist = length * (i / integrationSteps);//dist
-            var ab = integrate_ab(-1f, -.5f, 1f, dist, length);
-            var b0 = integrate_b0(-1f, -.5f, 1f, 1f, dist, length);
-            var c0 = integrate_c0(-1f, -.5f, 1f, 1f, dist, length);
-            var fallOff = fallOffFactor(pillowEffectFactor, dist, length);
-            var forcePos = (tri.center) + integrationAxis.normalized * dist;
-            torque *= (-ab - b0 + c0) * fallOff;
-            dragForces.Add((forcePos, torque));
-            rb.AddTorque(torque);
+            var dist = (x / integrationSteps);
+            var forcePos = transform.position + (integrationAxis.normalized * .5f) * (1f - dist);
+            var force = tangentialVel * fallOffFactor(pillowEffectFactor, dist, 1f);
+            //Debug.DrawRay(forcePos, force, Color.yellow);
+            //rb.AddForceAtPosition(-force, forcePos);
         }
         return dragForces;
-    }
-
-}
-
-namespace MathExtensions
-{
-    public static class VectorExtensions
-    {
-        public static Vector3 Mult(this Vector3 v, Vector3 scale)
-        {
-            return new Vector3(v.x * scale.x, v.y * scale.y, v.z * scale.z);
-        }
-
-        public static float Dot(this Vector3 a, Vector3 b)
-        {
-            return Vector3.Dot(a, b);
-        }
-
-        public static Vector3 Cross(this Vector3 a, Vector3 b)
-        {
-            return Vector3.Cross(a, b);
-        }
-
-        public static Vector3 Pow(this Vector3 a, float exp)
-        {
-            return new Vector3(Mathf.Pow(a.x, exp), Mathf.Pow(a.y, exp), Mathf.Pow(a.z, exp));
-        }
     }
 }
