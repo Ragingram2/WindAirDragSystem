@@ -14,12 +14,40 @@ public class triangle
     public Vector3 side3 { get; set; }
     public Vector3 normal { get; set; }
     public Vector3 center { get; set; }
+    public Vector3 inCenter { get; set; }
     public List<(Vector3 position, Vector3 force)> dragForces { get; set; }
 
     public triangle() { }
 
     public float airFlowArea(Vector3 airNormal) => Vector3.Magnitude(Vector3.Cross(side1 - (airNormal * Vector3.Dot(side1, airNormal)), side2 - (airNormal * Vector3.Dot(side2, airNormal)))) * .5f;
-    
+    public Vector3 closestVertexToPoint(Vector3 point)
+    {
+        Vector3 closestPoint = point;
+        float maxDistance = float.MaxValue;
+        float distance = Vector3.Distance(point, v1.point);
+        if (distance < maxDistance)
+        {
+            maxDistance = distance;
+            closestPoint = v1.point;
+        }
+
+        distance = Vector3.Distance(point, v2.point);
+        if (distance < maxDistance)
+        {
+            maxDistance = distance;
+            closestPoint = v2.point;
+        }
+
+        distance = Vector3.Distance(point, v3.point);
+        if (distance < maxDistance)
+        {
+            maxDistance = distance;
+            closestPoint = v3.point;
+        }
+
+        return closestPoint;
+    }
+
     public override string ToString()
     {
         return $"V1: {v1.point}\n" +
@@ -45,7 +73,7 @@ public class TriangleManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        transform.Rotate(transform.right,Input.GetAxis("Horizontal")*Time.deltaTime*50f);
+        transform.Rotate(transform.right, Input.GetAxis("Horizontal") * Time.deltaTime * 50f);
         UpdateMesh();
 
         if (Input.GetKeyUp(KeyCode.E))

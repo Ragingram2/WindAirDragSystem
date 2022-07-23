@@ -5,6 +5,7 @@ using UnityEngine;
 public class ItemPickup : MonoBehaviour
 {
     GameObject pickedUp;
+    public float throwForce = 100f;
     // Start is called before the first frame update
     void Start()
     {
@@ -24,23 +25,23 @@ public class ItemPickup : MonoBehaviour
                 {
                     pickedUp = hit.collider.gameObject;
                     pickedUp.transform.parent = transform;
-                    pickedUp.GetComponent<TriangleManager>().Pause();
                     pickedUp.GetComponent<Rigidbody>().isKinematic = true;
                     pickedUp.GetComponent<Rigidbody>().useGravity = false;
                     pickedUp.GetComponent<Rigidbody>().velocity = Vector3.zero;
                     pickedUp.GetComponent<Rigidbody>().angularVelocity = Vector3.zero;
+                    pickedUp.GetComponent<TriangleManager>().Pause();
                 }
             }
         }
         if (Input.GetMouseButtonUp(0) && pickedUp != null)
         {
             pickedUp.transform.parent = null;
-            pickedUp.GetComponent<TriangleManager>().Play();
             pickedUp.GetComponent<Rigidbody>().isKinematic = false;
             pickedUp.GetComponent<Rigidbody>().useGravity = true;
             pickedUp.GetComponent<Rigidbody>().velocity = Vector3.zero;
             pickedUp.GetComponent<Rigidbody>().angularVelocity = Vector3.zero;
-            pickedUp.GetComponent<Rigidbody>().AddForce(transform.forward * 1000.0f,ForceMode.Impulse);
+            pickedUp.GetComponent<Rigidbody>().AddForce(transform.forward * throwForce,ForceMode.Impulse);
+            pickedUp.GetComponent<TriangleManager>().Play();
             pickedUp = null;
         }
     }
