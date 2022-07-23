@@ -10,6 +10,9 @@ public class DragComponent : MonoBehaviour
 {
     [HideInInspector] public float pillowEffectFactor = .42f;
     [HideInInspector] public float airDensity = .1f;
+    [HideInInspector] public float forceMod = 10f;
+    public bool interactable = false;
+    public bool debug = false;
 
     private Rigidbody rb;
     private TriangleManager triManager;
@@ -42,8 +45,8 @@ public class DragComponent : MonoBehaviour
 
     private void FixedUpdate()
     {
-        rb.isKinematic = triManager.IsPaused();
-        rb.useGravity = !triManager.IsPaused();
+        rb.isKinematic = interactable ? triManager.IsPaused() : rb.isKinematic;
+        rb.useGravity = interactable ? !triManager.IsPaused() : rb.useGravity;
         UpdateDragForces();
     }
 
@@ -55,7 +58,6 @@ public class DragComponent : MonoBehaviour
 
         airNormal = -rb.velocity.normalized;
         velocity = rb.velocity;
-        //angularVelocity = rb.angularVelocity;
 
         if (Input.GetKeyUp(KeyCode.Q))
             logInfo = true;
@@ -74,26 +76,34 @@ public class DragComponent : MonoBehaviour
                 continue;
 
             var force = calculateForce(tri, area, theta);
-            Debug.DrawRay(transform.position + tri.center, force * 10f, Color.red);
-            Debug.DrawRay(transform.position + tri.center, tri.normal, Color.blue);
             var airProjected = velocity - tri.normal * (velocity.Dot(tri.normal));
-            Debug.DrawRay(transform.position + tri.center, airProjected, Color.yellow);
-
             var leftPoint = tri.closestVertexToPoint(airProjected.normalized * 5f);
-            Debug.DrawRay(transform.position + leftPoint, Vector3.up);
+
             //var eccentricity = Vector3.one;
             //var lAvg = pillowEffectFactor * .75f;
             //var hAvg = Vector3.Cross(airProjected, tri.normal).Dot(eccentricity);
             applyDragForce(transform.position + tri.center + leftPoint, airProjected, force);
 
-            //if (rb.angularVelocity.magnitude < 0.1f)
+            //angularVelocity = rb.angularVelocity.Cross(tri.center - transform.position);
+
+            //if (angularVelocity.magnitude < 0.1f)
             //    return;
+
+            //var integrationAxis = rb.angularVelocity.Cross(tri.normal);
+            //var triHeight = Vector3.Cross(integrationAxis, tri.normal);
 
             //Vector3 integrationAxis = tri.normal.Cross(angularVelocity);
             //var tangentialVel = rb.GetPointVelocity(transform.position + tri.center);
             //theta = Vector3.Angle(integrationAxis, angularVelocity);
             //var torque = tri.airFlowArea(-tangentialVel) * calculateTorque(tri, integrationAxis, theta);
             //applyAngularDragForce(tri, integrationAxis, (tangentialVel.normalized) * torque.magnitude);
+            Debug.DrawRay(transform.position + tri.center, force, Color.red);
+
+            if (debug)
+            {
+                Debug.DrawRay(transform.position + tri.center, tri.normal, Color.blue);
+                Debug.DrawRay(transform.position + tri.center, airProjected, Color.yellow);
+            }
 
             if (logInfo)
             {
@@ -113,12 +123,12 @@ public class DragComponent : MonoBehaviour
         var force = airDensity * area * (velocity.Pow(2f)) * Mathf.Cos(theta) * (1 + (Mathf.Cos(theta) / 2f));
         return force.Mult(tri.normal);
     }
-
     private Vector3 calculateTorque(triangle tri, Vector3 integrationAxis, float theta)
     {
         Vector3 torque = integrationAxis.Mult(angularVelocity.Pow(2f)) * airDensity * Mathf.Cos(1 + (Mathf.Cos(theta) / 2f));
         return torque;
     }
+
     private float fallOffFactor(float pillowEffectFactor, float distance, float length)
     {
         return (pillowEffectFactor * Mathf.Sqrt(1 - Mathf.Pow(distance / length, 2))) + (1 - pillowEffectFactor);
@@ -126,8 +136,7 @@ public class DragComponent : MonoBehaviour
     private void applyDragForce(Vector3 leftPoint, Vector3 projAir, Vector3 force)
     {
         force *= fallOffFactor(pillowEffectFactor, .5f, 1f);
-        Debug.DrawRay(leftPoint + (projAir * .5f), Vector3.up * .5f);
-        rb.AddForceAtPosition(force, leftPoint + (projAir * .5f));
+        rb.AddForceAtPosition(force * forceMod, leftPoint + (projAir * .5f));
     }
 
     private void applyAngularDragForce(triangle tri, Vector3 integrationAxis, Vector3 tangentialVel)

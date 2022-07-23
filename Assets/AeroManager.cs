@@ -6,6 +6,7 @@ public class AeroManager : MonoBehaviour
 {
     [SerializeField] private float airDensity =.1f;
     [SerializeField] private float pillowEffectFactor = .43f;
+    [SerializeField] private float forceMod = 10f;
     private void OnValidate()
     {
         var aeroFoils = FindObjectsOfType<DragComponent>();
@@ -13,6 +14,7 @@ public class AeroManager : MonoBehaviour
         {
             dragComp.airDensity = airDensity;
             dragComp.pillowEffectFactor = pillowEffectFactor;
+            dragComp.forceMod = forceMod;
         }
     }
 }

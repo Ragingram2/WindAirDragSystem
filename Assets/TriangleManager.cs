@@ -63,36 +63,34 @@ public class TriangleManager : MonoBehaviour
     private List<triangle> triangles = new List<triangle>();
     public List<triangle> Triangles => triangles;
     private Mesh mesh;
+    private Vector3[] vertices;
+    private int[] tris;
 
     // Start is called before the first frame update
     void Start()
     {
-        UpdateMesh();
+        InitMesh();
     }
 
     // Update is called once per frame
     void Update()
     {
-        transform.Rotate(transform.right, Input.GetAxis("Horizontal") * Time.deltaTime * 50f);
         UpdateMesh();
 
         if (Input.GetKeyUp(KeyCode.E))
             TogglePause();
     }
 
-    public void UpdateMesh()
+    public void InitMesh()
     {
-        if (pause)
-            return;
-
         mesh = GetComponent<MeshFilter>().mesh;
-        var tris = mesh.GetTriangles(0);
-        triangles.Clear();
+        vertices = mesh.vertices;
+        tris = mesh.GetTriangles(0);
         for (int i = 0; i < tris.Length;)
         {
-            var point1 = transform.localToWorldMatrix * mesh.vertices[tris[i + 0]];
-            var point2 = transform.localToWorldMatrix * mesh.vertices[tris[i + 1]];
-            var point3 = transform.localToWorldMatrix * mesh.vertices[tris[i + 2]];
+            var point1 = transform.localToWorldMatrix * vertices[tris[i + 0]];
+            var point2 = transform.localToWorldMatrix * vertices[tris[i + 1]];
+            var point3 = transform.localToWorldMatrix * vertices[tris[i + 2]];
             triangles.Add(new triangle
             {
                 v1 = (i + 0, point1),
@@ -104,6 +102,28 @@ public class TriangleManager : MonoBehaviour
                 normal = Vector3.Normalize(Vector3.Cross(point3 - point1, point2 - point1)),
                 center = ((point1 + point2 + point3) / 3.0f)
             });
+            i += 3;
+        }
+    }
+
+    public void UpdateMesh()
+    {
+        if (pause)
+            return;
+
+        for (int i = 0; i < tris.Length;)
+        {
+            var point1 = transform.localToWorldMatrix * vertices[tris[i + 0]];
+            var point2 = transform.localToWorldMatrix * vertices[tris[i + 1]];
+            var point3 = transform.localToWorldMatrix * vertices[tris[i + 2]];
+            triangles[i / 3].v1 = (i + 0, point1);
+            triangles[i / 3].v2 = (i + 1, point2);
+            triangles[i / 3].v3 = (i + 2, point3);
+            triangles[i / 3].side1 = point2 - point1;
+            triangles[i / 3].side2 = point3 - point2;
+            triangles[i / 3].side3 = point1 - point3;
+            triangles[i / 3].normal = Vector3.Normalize(Vector3.Cross(point3 - point1, point2 - point1));
+            triangles[i / 3].center = ((point1 + point2 + point3) / 3.0f);
             i += 3;
         }
     }
