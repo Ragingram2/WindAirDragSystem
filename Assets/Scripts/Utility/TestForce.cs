@@ -15,7 +15,7 @@ public class TestForce : MonoBehaviour
     {
         if (Input.GetKey(KeyCode.F))
         {
-            transform.parent.GetComponent<Rigidbody>().AddForceAtPosition(-Vector3.right * 3000f, transform.position);
+            transform.parent.GetComponent<Rigidbody>().AddForceAtPosition(transform.forward * 800f, transform.position);
         }
     }
 }

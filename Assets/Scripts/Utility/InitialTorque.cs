@@ -7,7 +7,7 @@ public class InitialTorque : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        GetComponent<Rigidbody>().AddTorque(transform.up * 500f);
+        GetComponent<Rigidbody>().AddTorque(transform.up * 800f);
     }
 
     // Update is called once per frame
