@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.18028378, g: 0.22571412, b: 0.30692285, a: 1}
+  m_IndirectSpecularColor: {r: 0.18028334, g: 0.2257134, b: 0.30692226, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -296,7 +296,7 @@ MonoBehaviour:
   airVelocity: {x: 0, y: 0, z: 0}
   airDensity: 0.8
   pillowEffectFactor: 0.8
-  forceMod: 1
+  forceMod: 0.01
 --- !u!4 &292995127
 Transform:
   m_ObjectHideFlags: 0
@@ -1332,7 +1332,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   pillowEffectFactor: 0.8
   airDensity: 0.8
-  forceMod: 1
+  forceMod: 0.01
   airVelocity: {x: 0, y: 0, z: 0}
   interactable: 0
   debugDrag: 0
@@ -1590,11 +1590,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   pillowEffectFactor: 0.8
   airDensity: 0.8
-  forceMod: 1
+  forceMod: 0.01
   airVelocity: {x: 0, y: 0, z: 0}
   interactable: 1
   debugDrag: 0
-  debugProjectedAir: 1
+  debugProjectedAir: 0
   debugNormals: 0
 --- !u!114 &2051190997
 MonoBehaviour:

@@ -49,5 +49,15 @@ namespace MathExtensions
         {
             return Mathf.Pow(value, exponent);
         }
+
+        public static float RadToDeg(this float value)
+        {
+            return value * Mathf.Rad2Deg;
+        }
+
+        public static float DegToRad(this float value)
+        {
+            return value * Mathf.Deg2Rad;
+        }
     }
 }
